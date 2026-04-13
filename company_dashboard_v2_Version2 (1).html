@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Dashboard v2 - Управление Задачами</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/SheetJS/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 0.95em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            justify-content: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(237, 137, 54, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .task-input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .task-input-section h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        input, select, textarea {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95em;
+            font-family: inherit;
+        }
+
+        textarea {
+            grid-column: 1 / -1;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .task-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .task-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+            border-left: 5px solid #667eea;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 15px;
+            align-items: start;
+        }
+
+        .task-item:hover {
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .task-item.high-priority {
+            border-left-color: #f56565;
+            background: #fff5f5;
+        }
+
+        .task-item.medium-priority {
+            border-left-color: #ed8936;
+            background: #fffaf0;
+        }
+
+        .task-item.low-priority {
+            border-left-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .task-item.overdue {
+            background: #fff5f5;
+            border: 2px solid #f56565;
+        }
+
+        .task-checkbox {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: #667eea;
+            margin-top: 2px;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .task-description {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+
+        .task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.85em;
+        }
+
+        .task-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-badge.high {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .priority-badge.medium {
+            background: #feebc8;
+            color: #c05621;
+        }
+
+        .priority-badge.low {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .status-badge.completed {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.pending {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .status-badge.overdue {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            flex-direction: column;
+        }
+
+        .task-actions button {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .stat-card.completed {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        .stat-card.overdue {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        }
+
+        .stat-card.pending {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #48bb78;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        .notification.error {
+            background: #f56565;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .completed-task {
+            opacity: 0.6;
+        }
+
+        .completed-task .task-title {
+            text-decoration: line-through;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.8em;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            text-align: center;
+            color: #999;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Company Dashboard v2</h1>
+            <p>Управление задачами с приоритетами и уведомлениями</p>
+        </header>
+
+        <div class="controls">
+            <div class="filter-group">
+                <label>Фильтр по приоритету:</label>
+                <select id="priorityFilter">
+                    <option value="">Все приоритеты</option>
+                    <option value="high">Высокий</option>
+                    <option value="medium">Средний</option>
+                    <option value="low">Низкий</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Фильтр по статусу:</label>
+                <select id="statusFilter">
+                    <option value="">Все статусы</option>
+                    <option value="pending">В ожидании</option>
+                    <option value="completed">Завершено</option>
+                    <option value="overdue">Просрочено</option>
+                </select>
+            </div>
+
+            <button class="btn-success" onclick="exportToExcel()">📥 Экспорт в Excel</button>
+            <button class="btn-primary" onclick="requestNotificationPermission()">🔔 Включить уведомления</button>
+            <button class="btn-warning" onclick="downloadHTML()">💾 Скачать как HTML</button>
+            <button class="btn-danger" onclick="clearAllTasks()">🗑️ Очистить всё</button>
+        </div>
+
+        <div class="content">
+            <div class="stats-container" id="statsContainer"></div>
+
+            <div class="task-input-section">
+                <h2>➕ Добавить новую задачу</h2>
+                <div class="input-group">
+                    <input type="text" id="taskTitle" placeholder="Название задачи" />
+                    <input type="date" id="taskDueDate" />
+                </div>
+                <div class="input-group">
+                    <select id="taskPriority">
+                        <option value="medium">Приоритет: Средний</option>
+                        <option value="high">Приоритет: Высокий</option>
+                        <option value="medium">Приоритет: Средний</option>
+                        <option value="low">Приоритет: Низкий</option>
+                    </select>
+                    <select id="taskAssignee">
+                        <option value="">Ответственный (не указан)</option>
+                        <option value="иван">Иван</option>
+                        <option value="мария">Мария</option>
+                        <option value="петр">Пётр</option>
+                        <option value="анна">Анна</option>
+                    </select>
+                </div>
+                <textarea id="taskDescription" placeholder="Описание задачи (опционально)"></textarea>
+                <button class="btn-primary" onclick="addTask()" style="width: 100%; margin-top: 15px;">Добавить задачу</button>
+            </div>
+
+            <div id="tasksContainer" class="task-list"></div>
+        </div>
+
+        <footer>
+            <p>© 2026 Company Dashboard v2 | Все права защищены | Версия 2.0</p>
+        </footer>
+    </div>
+
+    <script>
+        // Инициализация данных
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+        // Загрузить задачи при открытии
+        loadTasks();
+        checkOverdueTasks();
+        updateStats();
+
+        // Периодическая проверка просроченных задач
+        setInterval(checkOverdueTasks, 60000); // каждую минуту
+
+        function addTask() {
+            const title = document.getElementById('taskTitle').value.trim();
+            const dueDate = document.getElementById('taskDueDate').value;
+            const priority = document.getElementById('taskPriority').value;
+            const assignee = document.getElementById('taskAssignee').value;
+            const description = document.getElementById('taskDescription').value.trim();
+
+            if (!title) {
+                showNotification('Пожалуйста, введите название задачи', 'error');
+                return;
+            }
+
+            const task = {
+                id: Date.now(),
+                title,
+                description,
+                dueDate,
+                priority,
+                assignee,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+
+            tasks.push(task);
+            saveTasks();
+            loadTasks();
+            updateStats();
+
+            // Очистить форму
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDueDate').value = '';
+            document.getElementById('taskDescription').value = '';
+            document.getElementById('taskPriority').value = 'medium';
+            document.getElementById('taskAssignee').value = '';
+
+            showNotification('✅ Задача добавлена успешно!');
+        }
+
+        function loadTasks() {
+            const tasksContainer = document.getElementById('tasksContainer');
+            const priorityFilter = document.getElementById('priorityFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            let filteredTasks = tasks.filter(task => {
+                if (priorityFilter && task.priority !== priorityFilter) return false;
+                
+                if (statusFilter) {
+                    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
+                    if (statusFilter === 'overdue' && !isOverdue) return false;
+                    if (statusFilter === 'completed' && !task.completed) return false;
+                    if (statusFilter === 'pending' && (task.completed || isOverdue)) return false;
+                }
+                
+                return true;
+            });
+
+            if (filteredTasks.length === 0) {
+                tasksContainer.innerHTML = '<div class="empty-state"><p>📭 Нет задач. Начните с создания первой!</p></div>';
+                return;
+            }
+
+            tasksContainer.innerHTML = filteredTasks.map(task => {
+                const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
+                const statusClass = task.completed ? 'completed' : (isOverdue ? 'overdue' : 'pending');
+                const status = task.completed ? 'Завершено' : (isOverdue ? 'Просрочено' : 'В ожидании');
+
+                return `
+                    <div class="task-item ${task.priority}-priority ${task.completed ? 'completed-task' : ''}">
+                        <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})">
+                        <div class="task-content">
+                            <div class="task-title">${escapeHtml(task.title)}</div>
+                            ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
+                            <div class="task-meta">
+                                <span class="task-meta-item priority-badge ${task.priority}">
+                                    ${getPriorityLabel(task.priority)}
+                                </span>
+                                <span class="task-meta-item status-badge ${statusClass}">
+                                    ${status}
+                                </span>
+                                ${task.dueDate ? `<span class="task-meta-item">📅 ${formatDate(task.dueDate)}</span>` : ''}
+                                ${task.assignee ? `<span class="task-meta-item">👤 ${escapeHtml(task.assignee)}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn-primary btn-small" onclick="editTask(${task.id})">✏️ Редактировать</button>
+                            <button class="btn-danger btn-small" onclick="deleteTask(${task.id})">🗑️ Удалить</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                saveTasks();
+                loadTasks();
+                updateStats();
+            }
+        }
+
+        function deleteTask(id) {
+            if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                saveTasks();
+                loadTasks();
+                updateStats();
+                showNotification('❌ Задача удалена');
+            }
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                document.getElementById('taskTitle').value = task.title;
+                document.getElementById('taskDueDate').value = task.dueDate;
+                document.getElementById('taskPriority').value = task.priority;
+                document.getElementById('taskAssignee').value = task.assignee;
+                document.getElementById('taskDescription').value = task.description;
+                
+                deleteTask(id);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function updateStats() {
+            const completed = tasks.filter(t => t.completed).length;
+            const pending = tasks.filter(t => !t.completed && (!t.dueDate || new Date(t.dueDate) >= new Date())).length;
+            const overdue = tasks.filter(t => !t.completed && t.dueDate && new Date(t.dueDate) < new Date()).length;
+
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <h3>${tasks.length}</h3>
+                    <p>Всего задач</p>
+                </div>
+                <div class="stat-card completed">
+                    <h3>${completed}</h3>
+                    <p>Завершено</p>
+                </div>
+                <div class="stat-card pending">
+                    <h3>${pending}</h3>
+                    <p>В ожидании</p>
+                </div>
+                <div class="stat-card overdue">
+                    <h3>${overdue}</h3>
+                    <p>Просрочено</p>
+                </div>
+            `;
+        }
+
+        function checkOverdueTasks() {
+            const now = new Date();
+            tasks.forEach(task => {
+                if (!task.completed && task.dueDate && new Date(task.dueDate) < now) {
+                    sendNotification(`⚠️ Задача просрочена: "${task.title}"`);
+                }
+            });
+        }
+
+        function exportToExcel() {
+            if (tasks.length === 0) {
+                showNotification('Нет задач для экспорта', 'error');
+                return;
+            }
+
+            const data = tasks.map(task => ({
+                'Название': task.title,
+                'Описание': task.description,
+                'Приоритет': getPriorityLabel(task.priority),
+                'Статус': task.completed ? 'Завершено' : 'В ожидании',
+                'Срок': task.dueDate ? formatDate(task.dueDate) : '-',
+                'Ответственный': task.assignee || '-',
+                'Дата создания': formatDate(task.createdAt.split('T')[0])
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Задачи');
+
+            // Установить ширину колонок
+            ws['!cols'] = [
+                { wch: 30 },
+                { wch: 40 },
+                { wch: 12 },
+                { wch: 15 },
+                { wch: 15 },
+                { wch: 15 },
+                { wch: 15 }
+            ];
+
+            XLSX.writeFile(wb, `dashboard_tasks_${new Date().toISOString().split('T')[0]}.xlsx`);
+            showNotification('✅ Файл Excel создан и скачан!');
+        }
+
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    showNotification('✅ Уведомления уже включены!');
+                } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            showNotification('✅ Уведомления включены!');
+                            sendNotification('🎉 Уведомления работают!');
+                        }
+                    });
+                } else {
+                    showNotification('❌ Доступ к уведомлениям заблокирован', 'error');
+                }
+            } else {
+                showNotification('❌ Ваш браузер не поддерживает уведомления', 'error');
+            }
+        }
+
+        function sendNotification(message) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('📊 Company Dashboard', {
+                    body: message,
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">📊</text></svg>'
+                });
+            }
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function downloadHTML() {
+            const htmlContent = document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `company_dashboard_${new Date().toISOString().split('T')[0]}.html`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showNotification('💾 HTML-файл скачан! Используйте его на GitHub Pages');
+        }
+
+        function clearAllTasks() {
+            if (confirm('⚠️ Вы уверены? Это действие необратимо!')) {
+                tasks = [];
+                saveTasks();
+                loadTasks();
+                updateStats();
+                showNotification('🗑️ Все задачи удалены');
+            }
+        }
+
+        function saveTasks() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function getPriorityLabel(priority) {
+            const labels = {
+                'high': '🔴 Высокий',
+                'medium': '🟡 Средний',
+                'low': '🟢 Низкий'
+            };
+            return labels[priority] || priority;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Обработчики фильтров
+        document.getElementById('priorityFilter').addEventListener('change', loadTasks);
+        document.getElementById('statusFilter').addEventListener('change', loadTasks);
+
+        // Enter для добавления задачи
+        document.getElementById('taskTitle').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+    </script>
+</body>
+</html>
